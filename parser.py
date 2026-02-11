@@ -6,6 +6,7 @@ from selenium.webdriver.chrome.webdriver import WebDriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from stschyot import get_films
 
 os.makedirs("dataset/good", exist_ok=True)
 os.makedirs("dataset/bad", exist_ok=True)
@@ -13,20 +14,15 @@ options = webdriver.ChromeOptions()
 options.add_argument("--disable-blink-features=AutomationControlled")
 driver = webdriver.Chrome(options=options)
 
-films = [
-    (535341, "1+1"),
-    (435, "Зеленая миля"),
-    (448, "Форрест Гамп"),
-    (329, "Список Шиндлера"),
-    (1143242, "Джентльмены"),
-    (462682, "Волк с Уолл-Стрит")
-]
+films = get_films()
 
 good_counter = 0
 bad_counter = 0
 MAX_REVIEWS = 1000
+#pagesFromTo
+k = 0
 
-def save_review(text, film_name, status, counter):
+def save_review(text, film_name, status, counter): 
     filename = f"{counter:04d}.txt"
     folder = "good" if status == "good" else "bad"
     path = os.path.join("dataset", folder, filename)
@@ -35,42 +31,19 @@ def save_review(text, film_name, status, counter):
         f.write(text)
     print(f"Сохранён {status} отзыв: {filename}")
 
-for film_id, film_name in films:
-    if good_counter >= MAX_REVIEWS and bad_counter >= MAX_REVIEWS:
-        print("Достигнут лимит в 1000 отзывов для каждого типа.")
-        break
-
+for film_id, film_name, p, n in films:
     for status in ("good", "bad"):
-        if (status == "good" and good_counter >= MAX_REVIEWS) or (status == "bad" and bad_counter >= MAX_REVIEWS):
-            continue
-
+        counter = 0
         page = 1
-        while True:
-            url = f"https://www.kinopoisk.ru/film/{film_id}/reviews/ord/date/status/{status}/perpage/10/page/{page}/"
+        while status == "bad" or (status == "good" and counter < int(int(p) * 0.084) + 1):
+            url = f"https://www.kinopoisk.ru/film/{film_id}/reviews/ord/rating/status/{status}/perpage/25/page/{page}/"
             driver.get(url)
             time.sleep(2) 
 
-            try:
-                WebDriverWait(driver, 10).until(
-                    EC.presence_of_element_located((By.CLASS_NAME, "reviewItem"))
-                )
-            except:
-                break
-
             reviews = driver.find_elements(By.CLASS_NAME, "reviewItem")
-            if not reviews:
-                break
-
             for review in reviews:
-                if (status == "good" and good_counter >= MAX_REVIEWS) or (status == "bad" and bad_counter >= MAX_REVIEWS):
+                if (status == "bad" and bad_counter >= MAX_REVIEWS) or (status == "good" and counter >= int(int(p) * 0.084) + 1):
                     break
-
-                try:
-                    read_more = review.find_element(By.CLASS_NAME, "reviewItem_readmore")
-                    read_more.click()
-                    time.sleep(1)
-                except:
-                    pass
                 try:
                     text_element = review.find_element(By.CLASS_NAME, "brand_words")
                     text = text_element.text.strip()
@@ -83,6 +56,7 @@ for film_id, film_name in films:
                 if status == "good":
                     save_review(text, film_name, status, good_counter)
                     good_counter += 1
+                    counter+=1
                 else:
                     save_review(text, film_name, status, bad_counter)
                     bad_counter += 1
@@ -90,13 +64,14 @@ for film_id, film_name in films:
             if (status == "good" and good_counter >= MAX_REVIEWS) or (status == "bad" and bad_counter >= MAX_REVIEWS):
                 break
 
-            try:
+            page += 1
+            """try:
                 next_btn = driver.find_element(By.CLASS_NAME, "paginator__page-next")
                 if not next_btn.is_enabled():
                     break
-                page += 1
+                
             except:
-                break
+                break"""
 
             time.sleep(2) 
 
