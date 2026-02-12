@@ -55,4 +55,8 @@ for film_id, film_name, pos_rew, neg_rew in films:
             if ((status == "good" and counter >= int(int(pos_rew) * 0.084) + 1) or (status == "bad" and counter >= int(neg_rew))):
                     break
             page += 1
- 
+            time.sleep(1)
+
+
+driver.quit()
+print(f"Готово! Положительных отзывов: {good_counter}, отрицательных: {bad_counter}.")

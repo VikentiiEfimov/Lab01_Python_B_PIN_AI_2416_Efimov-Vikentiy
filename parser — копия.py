@@ -19,10 +19,9 @@ films = get_films()
 good_counter = 0
 bad_counter = 0
 MAX_REVIEWS = 1000
-k = 0
+per = [10, 25, 50, 75, 100, 200]
 p = 0
 m = 0
-o = 0
 
 def save_review(title, text, film_name, status, pn_counter):
     filename = f"{pn_counter:04d}.txt"
@@ -30,8 +29,7 @@ def save_review(title, text, film_name, status, pn_counter):
     path = os.path.join("dataset", folder, filename)
     with open(path, "w", encoding="utf-8") as f:
         f.write(film_name + "\n\n")
-        f.write(title + "\n\n")
-        #if title != "": 
+        if title != "": f.write(title + "\n\n")
         f.write(text)
     print(f"Сохранён {status} отзыв: {filename}")
 
@@ -40,10 +38,19 @@ for film_id, film_name, pos_rew, neg_rew in films:
 
     for status in ("good", "bad"):
         page = 1 
+
         counter = 0
         while True:
 
-            url = f"https://www.kinopoisk.ru/film/{film_id}/reviews/ord/rating/status/{status}/perpage/25/page/{page}/"
+            mni = 1000
+            perpage = 10
+            for x in per:
+                perpa = (x - (int(int(pos_rew) * 0.084) + 1)) if status == "good" else (x - int(neg_rew))
+                if abs(perpa) < mni:
+                    mni = abs(perpa)
+                    perpage = x
+
+            url = f"https://www.kinopoisk.ru/film/{film_id}/reviews/ord/rating/status/{status}/perpage/{perpage}/page/{page}/"
             driver.get(url)
             time.sleep(2) 
 
@@ -60,22 +67,11 @@ for film_id, film_name, pos_rew, neg_rew in films:
             for review in reviews:
                 if ((status == "good" and counter >= int(int(pos_rew) * 0.084) + 1) or (status == "bad" and counter >= int(neg_rew))):
                     break
+            
+                title = review.find_element(By.CLASS_NAME, "sub_title").text.strip()
+                text_element = review.find_element(By.CLASS_NAME, "brand_words")
+                text = text_element.text.strip()
 
-                try:
-                    read_more = review.find_element(By.CLASS_NAME, "reviewItem_readmore")
-                    read_more.click()
-                    k += 1
-                    time.sleep(1)
-                except:
-                    pass
-                try:
-                    title = review.find_element(By.CLASS_NAME, "sub_title").text.strip()
-                    text_element = review.find_element(By.CLASS_NAME, "brand_words")
-                    text = text_element.text.strip()
-                except:
-                    o +=1
-                    continue
-                
                 if status == "good":
                     save_review(title, text, film_name, status, good_counter)
                     good_counter += 1
@@ -83,7 +79,7 @@ for film_id, film_name, pos_rew, neg_rew in films:
                      save_review(title, text, film_name, status, bad_counter)
                      bad_counter += 1
                 counter +=1
-                
+
             if ((status == "good" and counter >= int(int(pos_rew) * 0.084) + 1) or (status == "bad" and counter >= int(neg_rew))):
                 break
             page += 1
@@ -91,4 +87,4 @@ for film_id, film_name, pos_rew, neg_rew in films:
 
 driver.quit()
 print(f"Готово! Положительных отзывов: {good_counter}, отрицательных: {bad_counter}.")
-print(f"кнопка открыть дальше была нужна {k} раз. Ошибка вызвана {m} раз. Для отзывов - {o} раз")
+print(f"Ошибка вызвана {m} раз")
